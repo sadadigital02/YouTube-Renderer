@@ -32,6 +32,7 @@ def extract_audio(youtube_url, output_audio):
     log_status("AUDIO_EXTRACT", f"Extracting audio from: {youtube_url}")
     cmd = [
         "yt-dlp",
+        "--remote-components", "ejs:github",
         "-f", "bestaudio/best",
         "--no-playlist",
         "-o", output_audio,
