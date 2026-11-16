@@ -47,37 +47,76 @@ def extract_audio(youtube_url, output_audio):
         raise RuntimeError(f"yt-dlp failed: {result.stderr}")
     log_status("AUDIO_EXTRACT", "Audio extracted successfully.")
 
-def render_video(image_path, audio_path, output_video, video_bitrate, audio_bitrate, preset):
-    log_status("RENDER", f"Starting FFmpeg render (Video: {video_bitrate}, Audio: {audio_bitrate}, Preset: {preset})")
+def render_video(image_path, audio_path, output_video, render_mode):
+    log_status("RENDER", f"Starting FFmpeg render in mode: {render_mode}")
     start_time = time.time()
 
     if not os.path.exists(image_path):
         raise FileNotFoundError(f"Uploaded image not found at path: {image_path}")
 
-    vf_filter = "scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2,format=yuv420p"
+    if render_mode == "chroma":
+        chroma_path = "chroma.mp4"
+        if not os.path.exists(chroma_path):
+            raise FileNotFoundError("ملف الكروما chroma.mp4 غير موجود في المستودع! ارفعه أولاً.")
 
-    cmd = [
-        "ffmpeg",
-        "-y",
-        "-loop", "1",
-        "-framerate", "1",
-        "-i", image_path,
-        "-i", audio_path,
-        "-c:v", "libx264",
-        "-preset", preset,
-        "-tune", "stillimage",
-        "-b:v", video_bitrate,
-        "-maxrate", video_bitrate,
-        "-bufsize", f"{int(video_bitrate.replace('k', '')) * 2}k",
-        "-r", "30",
-        "-vf", vf_filter,
-        "-c:a", "aac",
-        "-b:a", audio_bitrate,
-        "-ar", "48000",
-        "-shortest",
-        "-movflags", "+faststart",
-        output_video
-    ]
+        # Scale base image to 1920x1080, scale chroma to 1920x1080, blend with Screen mode
+        filter_complex = (
+            "[0:v]scale=1920:1080:force_original_aspect_ratio=decrease,"
+            "pad=1920:1080:(ow-iw)/2:(oh-ih)/2,format=gbrp[bg];"
+            "[1:v]scale=1920:1080,format=gbrp[fg];"
+            "[bg][fg]blend=all_mode=screen,format=yuv420p[outv]"
+        )
+
+        cmd = [
+            "ffmpeg",
+            "-y",
+            "-loop", "1",
+            "-framerate", "25",
+            "-i", image_path,
+            "-stream_loop", "-1",
+            "-i", chroma_path,
+            "-i", audio_path,
+            "-filter_complex", filter_complex,
+            "-map", "[outv]",
+            "-map", "2:a",
+            "-c:v", "libx264",
+            "-preset", "veryfast",
+            "-tune", "stillimage",
+            "-crf", "25",
+            "-g", "250",
+            "-r", "25",
+            "-c:a", "aac",
+            "-b:a", "192k",
+            "-ar", "48000",
+            "-shortest",
+            "-movflags", "+faststart",
+            output_video
+        ]
+    else:
+        # Static mode: 1 FPS + CRF 24 for ultra-fast render and tiny file size
+        vf_filter = "scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2,format=yuv420p"
+
+        cmd = [
+            "ffmpeg",
+            "-y",
+            "-loop", "1",
+            "-framerate", "1",
+            "-i", image_path,
+            "-i", audio_path,
+            "-c:v", "libx264",
+            "-preset", "ultrafast",
+            "-tune", "stillimage",
+            "-crf", "24",
+            "-g", "30",
+            "-r", "1",
+            "-vf", vf_filter,
+            "-c:a", "aac",
+            "-b:a", "192k",
+            "-ar", "48000",
+            "-shortest",
+            "-movflags", "+faststart",
+            output_video
+        ]
 
     result = subprocess.run(cmd, capture_output=True, text=True)
     if result.returncode != 0:
@@ -114,9 +153,7 @@ def main():
     job_id = os.environ.get("JOB_ID", "test_job")
     youtube_url = os.environ.get("YOUTUBE_URL")
     image_path = os.environ.get("IMAGE_PATH")
-    video_bitrate = os.environ.get("VIDEO_BITRATE", "3000k")
-    audio_bitrate = os.environ.get("AUDIO_BITRATE", "256k")
-    preset = os.environ.get("FFMPEG_PRESET", "veryfast")
+    render_mode = os.environ.get("RENDER_MODE", "static")
     output_folder_id = os.environ.get("GDRIVE_FOLDER_ID", "")
 
     if not youtube_url or not image_path:
@@ -128,9 +165,9 @@ def main():
     # 1. Extract Audio
     extract_audio(youtube_url, audio_path)
 
-    # 2. Render Video using directly uploaded image
+    # 2. Render Video
     render_time, size_mb = render_video(
-        image_path, audio_path, output_video, video_bitrate, audio_bitrate, preset
+        image_path, audio_path, output_video, render_mode
     )
 
     # 3. Upload final MP4 to Google Drive
@@ -143,6 +180,7 @@ def main():
     result_data = {
         "status": "SUCCESS",
         "job_id": job_id,
+        "render_mode": render_mode,
         "render_time_sec": render_time,
         "file_size_mb": size_mb,
         "view_link": view_link,
