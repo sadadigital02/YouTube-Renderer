@@ -15,20 +15,10 @@ on:
         description: 'Path to uploaded image in repo'
         required: true
         type: string
-      video_bitrate:
-        description: 'Video Bitrate (e.g. 3000k or 4000k)'
+      render_mode:
+        description: 'Render Mode (static or chroma)'
         required: false
-        default: '3000k'
-        type: string
-      audio_bitrate:
-        description: 'Audio Bitrate (e.g. 256k or 320k)'
-        required: false
-        default: '256k'
-        type: string
-      ffmpeg_preset:
-        description: 'FFmpeg Preset (ultrafast, superfast, veryfast)'
-        required: false
-        default: 'veryfast'
+        default: 'static'
         type: string
 
 jobs:
@@ -72,9 +62,7 @@ jobs:
           JOB_ID: ${{ github.event.inputs.job_id }}
           YOUTUBE_URL: ${{ github.event.inputs.youtube_url }}
           IMAGE_PATH: ${{ github.event.inputs.image_path }}
-          VIDEO_BITRATE: ${{ github.event.inputs.video_bitrate }}
-          AUDIO_BITRATE: ${{ github.event.inputs.audio_bitrate }}
-          FFMPEG_PRESET: ${{ github.event.inputs.ffmpeg_preset }}
+          RENDER_MODE: ${{ github.event.inputs.render_mode }}
           GDRIVE_CLIENT_ID: ${{ secrets.GDRIVE_CLIENT_ID }}
           GDRIVE_CLIENT_SECRET: ${{ secrets.GDRIVE_CLIENT_SECRET }}
           GDRIVE_REFRESH_TOKEN: ${{ secrets.GDRIVE_REFRESH_TOKEN }}
