@@ -34,10 +34,13 @@ def extract_audio(youtube_url, output_audio):
         "yt-dlp",
         "-f", "bestaudio/best",
         "--no-playlist",
-        "--extractor-args", "youtube:player_client=android,ios",
         "-o", output_audio,
-        youtube_url
     ]
+    if os.path.exists("cookies.txt") and os.path.getsize("cookies.txt") > 0:
+        cmd.extend(["--cookies", "cookies.txt"])
+
+    cmd.append(youtube_url)
+
     result = subprocess.run(cmd, capture_output=True, text=True)
     if result.returncode != 0:
         raise RuntimeError(f"yt-dlp failed: {result.stderr}")
