@@ -57,6 +57,14 @@ jobs:
           pip install --upgrade pip
           pip install -r requirements.txt
 
+      - name: Prepare YouTube Cookies
+        env:
+          YOUTUBE_COOKIES: ${{ secrets.YOUTUBE_COOKIES }}
+        run: |
+          if [ -n "$YOUTUBE_COOKIES" ]; then
+            printf "%s" "$YOUTUBE_COOKIES" > cookies.txt
+          fi
+
       - name: Run Video Render Engine
         id: run_render
         continue-on-error: true
@@ -73,8 +81,9 @@ jobs:
         run: |
           python render.py
 
-      - name: Save Job Result & Cleanup Temp Image
+      - name: Save Job Result & Cleanup Temp Files
         run: |
+          rm -f cookies.txt
           mkdir -p jobs
           if [ -f result.json ]; then
             cp result.json "jobs/${{ github.event.inputs.job_id }}.json"
