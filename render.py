@@ -55,7 +55,7 @@ def render_video(image_path, audio_path, output_video, render_mode):
         raise FileNotFoundError(f"Uploaded image not found at path: {image_path}")
 
     if render_mode == "chroma":
-        chroma_path = "chroma.mp4"
+        chroma_path = "chroma.mp4" if os.path.exists("chroma.mp4") else "chroma.mp4.mp4"
         if not os.path.exists(chroma_path):
             raise FileNotFoundError("ملف الكروما chroma.mp4 غير موجود في المستودع! ارفعه أولاً.")
 
@@ -81,12 +81,12 @@ def render_video(image_path, audio_path, output_video, render_mode):
             "-c:v", "libx264",
             "-preset", "veryfast",
             "-tune", "stillimage",
-            "-crf", "25",
+            "-crf", "27",
             "-g", "250",
             "-r", "25",
             "-c:a", "aac",
-            "-b:a", "192k",
-            "-ar", "48000",
+            "-b:a", "128k",
+            "-ar", "44100",
             "-shortest",
             "-movflags", "+faststart",
             output_video
