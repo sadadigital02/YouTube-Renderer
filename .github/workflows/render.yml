@@ -1,0 +1,89 @@
+name: Cloud Video Renderer
+
+on:
+  workflow_dispatch:
+    inputs:
+      job_id:
+        description: 'Unique Job ID'
+        required: true
+        type: string
+      youtube_url:
+        description: 'YouTube Video URL'
+        required: true
+        type: string
+      image_path:
+        description: 'Path to uploaded image in repo'
+        required: true
+        type: string
+      video_bitrate:
+        description: 'Video Bitrate (e.g. 3000k or 4000k)'
+        required: false
+        default: '3000k'
+        type: string
+      audio_bitrate:
+        description: 'Audio Bitrate (e.g. 256k or 320k)'
+        required: false
+        default: '256k'
+        type: string
+      ffmpeg_preset:
+        description: 'FFmpeg Preset (ultrafast, superfast, veryfast)'
+        required: false
+        default: 'veryfast'
+        type: string
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install FFmpeg and Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+          pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run Video Render Engine
+        id: run_render
+        continue-on-error: true
+        env:
+          JOB_ID: ${{ github.event.inputs.job_id }}
+          YOUTUBE_URL: ${{ github.event.inputs.youtube_url }}
+          IMAGE_PATH: ${{ github.event.inputs.image_path }}
+          VIDEO_BITRATE: ${{ github.event.inputs.video_bitrate }}
+          AUDIO_BITRATE: ${{ github.event.inputs.audio_bitrate }}
+          FFMPEG_PRESET: ${{ github.event.inputs.ffmpeg_preset }}
+          GDRIVE_CLIENT_ID: ${{ secrets.GDRIVE_CLIENT_ID }}
+          GDRIVE_CLIENT_SECRET: ${{ secrets.GDRIVE_CLIENT_SECRET }}
+          GDRIVE_REFRESH_TOKEN: ${{ secrets.GDRIVE_REFRESH_TOKEN }}
+        run: |
+          python render.py
+
+      - name: Save Job Result & Cleanup Temp Image
+        run: |
+          mkdir -p jobs
+          if [ -f result.json ]; then
+            cp result.json "jobs/${{ github.event.inputs.job_id }}.json"
+          else
+            echo '{"status":"FAILED","error":"Render process terminated unexpectedly."}' > "jobs/${{ github.event.inputs.job_id }}.json"
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          if [ -f "${{ github.event.inputs.image_path }}" ]; then
+            git rm -f "${{ github.event.inputs.image_path }}" || rm -f "${{ github.event.inputs.image_path }}"
+          fi
+
+          git add "jobs/${{ github.event.inputs.job_id }}.json"
+          git commit -m "Complete job ${{ github.event.inputs.job_id }}" || exit 0
+          git push
