@@ -34,6 +34,7 @@ def extract_audio(youtube_url, output_audio):
         "yt-dlp",
         "-f", "bestaudio/best",
         "--no-playlist",
+        "--extractor-args", "youtube:player_client=android,ios",
         "-o", output_audio,
         youtube_url
     ]
@@ -49,7 +50,6 @@ def render_video(image_path, audio_path, output_video, video_bitrate, audio_bitr
     if not os.path.exists(image_path):
         raise FileNotFoundError(f"Uploaded image not found at path: {image_path}")
 
-    # Scale image to 1920x1080 with black padding if aspect ratio differs
     vf_filter = "scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2,format=yuv420p"
 
     cmd = [
