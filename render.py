@@ -59,7 +59,6 @@ def render_video(image_path, audio_path, output_video, render_mode):
         if not os.path.exists(chroma_path):
             raise FileNotFoundError("ملف الكروما chroma.mp4 غير موجود في المستودع! ارفعه أولاً.")
 
-        # Scale base image to 1920x1080, scale chroma to 1920x1080, blend with Screen mode
         filter_complex = (
             "[0:v]scale=1920:1080:force_original_aspect_ratio=decrease,"
             "pad=1920:1080:(ow-iw)/2:(oh-ih)/2,format=gbrp[bg];"
@@ -93,7 +92,7 @@ def render_video(image_path, audio_path, output_video, render_mode):
             output_video
         ]
     else:
-        # Static mode: 1 FPS + CRF 24 for ultra-fast render and tiny file size
+        # Ultra-compact Static mode: 1 FPS + CRF 28 + Keyframe every 600s + 128k AAC
         vf_filter = "scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2,format=yuv420p"
 
         cmd = [
@@ -104,15 +103,15 @@ def render_video(image_path, audio_path, output_video, render_mode):
             "-i", image_path,
             "-i", audio_path,
             "-c:v", "libx264",
-            "-preset", "ultrafast",
+            "-preset", "superfast",
             "-tune", "stillimage",
-            "-crf", "24",
-            "-g", "30",
+            "-crf", "28",
+            "-g", "600",
             "-r", "1",
             "-vf", vf_filter,
             "-c:a", "aac",
-            "-b:a", "192k",
-            "-ar", "48000",
+            "-b:a", "128k",
+            "-ar", "44100",
             "-shortest",
             "-movflags", "+faststart",
             output_video
